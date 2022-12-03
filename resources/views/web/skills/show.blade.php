@@ -49,7 +49,7 @@
                         <div class="col-md-3">
                             <div class="single-blog">
                                 <div class="blog-img">
-                                    <a href="exam.html">
+                                    <a href="{{ url("exams/show/$exam->id") }}">
                                         <img src="{{asset("uploads/$exam->img")}}" alt="">
                                     </a>
                                 </div>
