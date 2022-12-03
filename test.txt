@@ -1,0 +1,473 @@
+### Create Laravel Project ###
+1- composer create-project laravel/laravel your-project-name
+2- php artisan serve
+3- create db [skillshub , utf8mb4_unicode_ci]
+4- .env file and define credentials of db [DB_DATABASE=skillshub]
+### create migrations and models ###
+1- Users Roles: [superadmin - admin - student]
+2- Create model and migration [Role] : php artisan make:model Role -m -> fields : [name]
+Roles: -> $table->string('name', 20); -> Users:  $table->foreignId('role_id')->constrained('roles', 'id');
+3- php artisan make:model Cat -m
+$table->boolean('active')->default(true); // if admin want to add cats , skills , exams but not show in website now [not show to user untill admin want change to 'false'] 
+4- php artisan make:model Skill -m
+5- php artisan make:model Exam -m
+6- php artisan make:model Question -m
+relation *_* between Users and exams -> Create pivot table [migration only]
+7- php artisan make:migration  create_exam_user_table 
+8- php artisan make:model Message -m
+9- php artisan make:model Setting -m -> [contactinfo - social links]
+10- php artisan migrate 
+### Models Relationships ###
+users - roles *-1
+roles has many users 
+users belongs to one rule
+cats - skills 1 - *
+cats has many skills
+skill belongs to one cat
+skills - exams 1 - *
+skills has many exams 
+exam belongs to one skill
+exams - questions 1 - *
+exam has many questions
+question belongs to one exam
+users - exams * - *
+user has many exams
+exam belongs to many users
+### seeders ### [بيحط البذرة بتاعه الداتا اللي انا بعمل تيست بيها ]
+- define fillable columns in models 
+- guarded columns -->  columns not fillable 
+-- Seed ==> grow data in db  database/seeders
+-- create seeders 
+1- php artisan make:seeder RoleSeeder
+2- php artisan make:seeder UserSeeder
+3- php artisan make:seeder SettingSeeder
+-- Run Seeder ->  
+1- php artisan db:seed --class=RoleSeeder
+2- php artisan db:seed --class=UserSeeder
+3- php artisan db:seed --class=SettingSeeder
+--> Advantage #### if data earsed --> php artisan db:seed --class=RoleSeeder --> data returned 
+--> DisAdvantage ### entering data manually if data has large scale , this will be difficult --> Solution [for loop] or the best [Factory]
+### factories ### [خط انتاج] [Create dummy data] 
+1- php artisan make:seeder CatSeeder
+    public function run()
+    {
+        Cat::factory()->count(10)->create();
+    }
+Create Factory --> [php artisan make:factory CatFactory] --> database/factories
+/**
+     * The name of the factory's corresponding model.
+     *
+     * @var string
+     */
+
+    protected $model = Cat::class;
+     public function definition()
+    {
+        return [
+            'name' => json_encode([
+                'en'=> $this->faker->word(), // create words dynamic    
+                'ar'=> $this->faker->word(), // create words dynamic   
+            ]),
+        ];
+    }
+
+Run seerder --> php artisan db:seed --class=CatSeeder
+لو نفذته كمان مرة هيزود الدات حسب ال counter 
+Note : $this->faker->word(), // create words dynamic   
+2- php artisan make:factory SkillFactory
+3- php artisan make:factory ExamFactory
+4- php artisan make:factory QuestionFactory
+create 5 category and under each category 8 skills
+Cat::factory()->has(
+            Skill::factory()->count(8)
+        )->count(5)->create();
+create 5 category and under each category 8 skills and under each skill 2 exams   
+Cat::factory()->has(
+            Skill::factory()->has(
+                Exam::factory()->count(2)
+            )->count(8)
+        )->count(5)->create();
+
+create 5 category and under each category 8 skills and under each skill 2 exams and under each exam 15 questions  
+Cat::factory()->has(
+            Skill::factory()->has(
+                Exam::factory()->has(
+                    Question::factory()->count(15)
+                )->count(2)
+            )->count(8)
+        )->count(5)->create();
+
+##### Note: php artisan migrate:fresh --> drop all tabels and create it again 
+##### In DatabaseSeeder
+$this->call([
+            RoleSeeder::class,
+            UserSeeder::class,
+            SettingSeeder::class,
+            CatSeeder::class,
+        ]);
+##### In terminal : php artisan db:seed
+
+######## website assets - routes #############
+assets -> public [css , js , images (static) , fonts ]
+uploads -> images (dynamic)
+index.php --> show in basic route 
+modify links of css , js , images 
+to bring something from public --> asset()
+########### static translations (lang folder) ############
+not from db 
+ar - en folders
+<?php
+
+return [
+    // navbar 
+    'home' => 'Home',
+    'cats' => 'Categories',
+    'contact' => 'Contact Us',
+    'signin' => 'Sign In',
+    'signup' => 'Sign Up'
+];
+
+<?php
+
+return [
+    // navbar 
+    'home' => 'الرئيسية',
+    'cats' => 'التصنيفات',
+    'contact' => 'اتصل بنا',
+    'signin' => 'تسجيل دخول',
+    'signup' => 'تسجيل حساب'
+];
+
+@lang('web.home')
+{{__('web.home')}}
+
+Change default of app from english: config/app.php
+'locale' => 'en',
+#### Switch langauge ####
+Create buttons store key in session (lang) and value [en , ar]
+    @if (App::getLocale() == "ar")
+        <li><a href="{{url('/lang/set/en')}}">EN</a></li>
+    @else
+        <li><a href="{{url('/lang/set/ar')}}">ع</a></li>
+    @endif
+php artisan make:controller Web/LangController
+Route::get('/lang/set/{lang}', [LangController::class , 'set']);
+class LangController extends Controller
+{
+    public function set($lang, Request $request)
+    {
+        $acceptedLangs = ['en', 'ar'];
+        if( ! in_array($lang , $acceptedLangs)){
+            $lang = "en";
+        }
+
+        $request->session()->put('lang' , $lang);
+        return back();
+    }
+}
+Change default of app Upon value of key lang in session: 
+Create Middlerware --> php artisan make:middleware Lang
+        $lang = $request->session()->get('lang');
+        if ($lang == null){
+            $lang = "en";
+        }
+        App::setLocale($lang);
+        return $next($request);
+Record middleware in kernel.php
+
+######### database translations ########
+json_decode('' , true or false) true -> return as array | false -> return as object
+default -> false 
+ public function name($lang = null)
+    {
+        $lang = $lang ?? App::getLocale();
+        return json_decode($this->name)->$lang;
+    }
+
+
+#### navbar x-component ####
+nav bar in all pages --> need to bring cats in all pages (bad repition تكرار)
+Solution (x-component) =>
+navbr put in class with its data 
+php artisan make:component Navbar
+In [app/View/Components]
+<!-- Navigation -->
+<x-navbar></x-navbar>
+<!-- /Navigation -->
+
+### show category - pagintaion ###
+
+[image generator ]
+<?php
+
+$path = __DIR__. "/skillshub/public/uploads/exams/";
+$ext = "png";
+$start = 1;
+$end = 80;
+
+
+for($i = $start + 1 ; $i <= $end ; $i++)
+{
+    copy("$path/1.$ext", "$path/$i.$ext");
+    echo "image $i.$ext generated successfully <br>";
+}
+
+##### show skills - exam - examquestions #####
+######## before ajax ##########
+public function send(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'subject' =>'nullable|string|max:255',
+            'body' =>'required|string'
+        ]);
+
+        if ($validator->fails()){
+            $errors = $validator->errors();
+            return redirect(url('contact'))->withErrors($errors);
+        }
+
+        Message::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'subject' => $request->subject,
+            'body' => $request->body,
+        ]);
+
+        $request->session()->flash('success', 'your message sent successfully');
+        return back();
+
+    }
+
+<form method="POST" action="{{ url('contact/message/send') }}">
+                            @csrf
+                            <input class="input" type="text" name="name" placeholder="{{__('web.name')}}">
+                            <input class="input" type="email" name="email" placeholder="{{__('web.email')}}">
+                            <input class="input" type="text" name="subject" placeholder="{{__('web.subject')}}">
+                            <textarea class="input" name="body" placeholder="{{__('web.entermsg')}}"></textarea>
+                            <button type="submit" class="main-button icon-button pull-right">{{__('web.send')}}</button>
+</form>
+######## ajax ##########
+AJAX = Asynchronous JavaScript And XML
+1- backend -> controller
+ public function send(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'subject' =>'nullable|string|max:255',
+            'body' =>'required|string'
+        ]);
+
+        if ($validator->fails()){
+            $errors = $validator->errors();
+            // return redirect(url('contact'))->withErrors($errors);
+            return Response::json($errors);
+
+        }
+ 
+        Message::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'subject' => $request->subject,
+            'body' => $request->body,
+        ]);
+
+        // $request->session()->flash('success', 'your message sent successfully');
+        // return back();
+
+        $data = ['success' => 'your message sent successfully'];
+        return Response::json($data);
+        
+
+    }
+2- front --> instead submit straight  
+
+defaultbehaviour --> انه بيروح ينفذ الاكشن
+
+############## laravel fortify ##################
+1- composer require laravel/fortify
+2- php artisan vendor:publish --provider="Laravel\Fortify\FortifyServiceProvider"
+3- php artisan migrate
+4- add --> App\Providers\FortifyServiceProvider -> in the providers array of your application's config/app.php
+it handles backend we only handle front end (views)
+// php artisan route:list ==> all routes in your application in addition to routes of fortify 
+
+// from config/fortify --> enable / disable features 
+//from app/providers/FortifyServiceProvider --> know package with view will return
+        Fortify::registerView(fn() => view('auth.register'));
+// app/actions -->  CreateNewUser.php
+//config/fortify-->  'home' => "/",        
+// add middleware to routes --> vendor/laravel/fortify/routes/routes.php
+
+######### email verification - reset password ##########
+
+in .env --> link to mail server (malitrap)
+enable feature of email verification --> config/fortify
+User model must implements Illuminate\Contracts\Auth\MustVerifyEmail
+class User extends Authenticatable implements MustVerifyEmail
+view of verify email
+in email verification --> when register send link to email 
+
+
+2 forms  [forgot-password | reset-password]
+Fortify::requestPasswordResetLinkView(function(){
+            return view('auth.forgot-password');
+        });
+
+enable feature of resetPasswords --> config/fortify
+
+when entered data and set submit if email sent already --> store in session key [status]
+
+
+ Fortify::resetPasswordView(function($request){
+            return view('auth.reset-password', ['request' => $request]);
+        });
+
+
+<input type="hidden" name="token" value="96ebe4c0bb81033ad0f2002a3e6e4b350aff4035449a2f3ae5761a2b057572cf">
+عشان لما اعمل submit يستقبل ال token  ويقارنه باللي كان باعته 
+
+password resets table -> temporary table 
+
+######## middleware check if admin - superadmin -student #####
+register 3 middlewares in kernel
+
+###############################################
+when entered exam post->get->post
+1- start exam [post] [userid , examid]
+2- redirect [get] questions view 
+3- submit after exam [post] [score , time_mins , status, .... ]
+ public function users()
+    {
+        return $this->belongsToMany(User::class)->withPivot('score', 'time_mins', 'status')->withTimestamps();
+    }
+    
+handle status 
+check sequence start->questions->submit
+Middlerware -> php artisan make:middleware CanEnterExam
+
+
+locale scopes -->
+  public function scopeActive($query)
+    {
+        return $query->where('active', 1);
+    }
+$data['cats'] = Cat::select('id', 'name')->active()->get();
+
+
+############## dashboard ######################
+Route prefix 
+package for images [imageup]
+$ composer require qcod/laravel-imageup
+1- config/filesystems
+
+
+url()->previous()
+in pagintaion --> back to page اللي كنت فيها 
+http://localhost:8000/dashboard/exams?page=2
+enter axam => http://localhost:8000/dashboard/exams/show/71
+click on back -> http://localhost:8000/dashboard/exams?page=2
+
+
+
+Mailable classess 'اشكال الايميلات اللي بتبعتها' - Mail class 'الارسال'
+blade-class [php artisan make:mail ContactResponseMail ] -> [App/mail]
+
+Route::get('test', function() {
+   Mail::to('ahmed@gmail.com')->send(new ContactResponseMail);
+});
+
+if dynamic data ---->
+
+public $title , $body;
+
+    public function __construct($title , $body)
+    {
+        $this->title = $title;
+        $this->body = $body;
+    }
+
+public properties read automatic in view 
+
+############## real time notifications using pusher ###################
+
+ajax ==> comments --> display comment without needing to reload page
+
+notifications -> i donot know user will post when to send me notification
+ajax-> send request each minute or second check if user post something --> big problem [load server علي الفاضي ]
+Solution--> server when specific things happen , send to browser byself [push]
+---> [websocket]
+
+pusher --> channel -->proadcast
+listen on channel on which proadcasts made
+
+#### link to project #######
+1- .env 
+PUSHER_APP_ID=1491062
+PUSHER_APP_KEY=45fd1577ed7ccc0beb28
+PUSHER_APP_SECRET=7018b6e731bb5bc5f080
+PUSHER_APP_CLUSTER=eu
+BROADCAST_DRIVER=pusher
+
+2- composer require pusher/pusher-php-server
+
+######### create event-> class ###########
+3- php artisan make:event ExamAddedEvent [app/events]
+
+open connection channel with other 
+1- class MyEvent implements ShouldBroadcast
+2-
+    // name of channel 
+  public function broadcastOn()
+  {
+      return ['my-channel'];
+  }
+    // name of event
+    public function broadcastAs()
+  {
+      return 'my-event';
+  }
+
+######## In browser [Subscribe to events on the client] listener ################
+toaster js
+
+######## activate event #######
+
+
+############# api resources ##############
+1- define routes
+2- create api/controllers 
+3- bring data and turn to json --> create resources 
+
+
+'skills' => SkillResource::collection($this->whenLoaded('skills')), // collection
+معناها انه مش هيعرض المهارات اللي تحت ال Categories الا في صفحه ال show
+
+
+########## api token auth using laravel sanctum ################
+api  Tokens Authentication 
+SPA Authentication [Single Page Authentication]--> browser
+
+1- composer require laravel/sanctum
+2- php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"
+C:\xampp\htdocs\skillshub\vendor\laravel\sanctum\database\migrations 
+to -->
+C:\xampp\htdocs\skillshub\database\migrations
+[2019_12_14_000001_create_personal_access_tokens_table]
+C:\xampp\htdocs\skillshub\config\sanctum.php
+3- php artisan migrate
+
+---> authenticate API requests to your application
+---> To begin issuing tokens for users, your User model should use the Laravel\Sanctum\HasApiTokens trait:
+
+
+authorization-> bearer token
+send token 
+
+if token is wrong or not sent token --> In headers accept [application/json] to return json message instead return html view 
+
+bring info of user that send request either authenticate using session or api
+$request->user();
+preview in response 
